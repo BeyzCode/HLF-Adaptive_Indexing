@@ -87,12 +87,14 @@ type SimpleChaincode struct {
 }
 
 type Asset struct {
-	DocType        string `json:"docType"` //docType is used to distinguish the various types of objects in state database
-	ID             string `json:"ID"`      //the field tags are needed to keep case from bouncing around
-	Color          string `json:"color"`
-	Size           int    `json:"size"`
-	Owner          string `json:"owner"`
-	AppraisedValue int    `json:"appraisedValue"`
+	DocType           string `json:"docType"` //docType is used to distinguish the various types of objects in state database
+	ID                string `json:"ID"`      //the field tags are needed to keep case from bouncing around
+	NameProduct       string `json:"nameproduct"`
+	Quantity          int    `json:"quantitiy"`
+	Warehouse         string `json:"warehouse"`
+	ResponsiblePerson string `json:"responsibleperson"`
+	Status            string `json:"status"`
+	Timestamp         string `json:"timestamp"`
 }
 
 // HistoryQueryResult structure used for returning result of history query
@@ -111,7 +113,7 @@ type PaginatedQueryResult struct {
 }
 
 // CreateAsset initializes a new asset in the ledger
-func (t *SimpleChaincode) CreateAsset(ctx contractapi.TransactionContextInterface, assetID, color string, size int, owner string, appraisedValue int) error {
+func (t *SimpleChaincode) CreateAsset(ctx contractapi.TransactionContextInterface, assetID, nameproduct string, quantity int, warehouse string, responsibleperson string, status string, timestamp string) error {
 	exists, err := t.AssetExists(ctx, assetID)
 	if err != nil {
 		return fmt.Errorf("failed to get asset: %v", err)
@@ -121,12 +123,14 @@ func (t *SimpleChaincode) CreateAsset(ctx contractapi.TransactionContextInterfac
 	}
 
 	asset := &Asset{
-		DocType:        "asset",
-		ID:             assetID,
-		Color:          color,
-		Size:           size,
-		Owner:          owner,
-		AppraisedValue: appraisedValue,
+		DocType:           "inventory",
+		ID:                assetID,
+		NameProduct:       nameproduct,
+		Quantity:          quantity,
+		Warehouse:         warehouse,
+		ResponsiblePerson: responsibleperson,
+		Status:            status,
+		Timestamp:         timestamp,
 	}
 	assetBytes, err := json.Marshal(asset)
 	if err != nil {
@@ -143,14 +147,15 @@ func (t *SimpleChaincode) CreateAsset(ctx contractapi.TransactionContextInterfac
 	//  The key is a composite key, with the elements that you want to range query on listed first.
 	//  In our case, the composite key is based on indexName~color~name.
 	//  This will enable very efficient state range queries based on composite keys matching indexName~color~*
-	colorNameIndexKey, err := ctx.GetStub().CreateCompositeKey(index, []string{asset.Color, asset.ID})
+	warehouseIndexKey, err := ctx.GetStub().CreateCompositeKey(index, []string{asset.Warehouse, asset.ID})
 	if err != nil {
 		return err
 	}
-	//  Save index entry to world state. Only the key name is needed, no need to store a duplicate copy of the asset.
-	//  Note - passing a 'nil' value will effectively delete the key from state, therefore we pass null character as value
+
+	// Simpan index ke world state (hanya key, tanpa duplikasi data)
 	value := []byte{0x00}
-	return ctx.GetStub().PutState(colorNameIndexKey, value)
+	return ctx.GetStub().PutState(warehouseIndexKey, value)
+
 }
 
 // ReadAsset retrieves an asset from the ledger
@@ -184,23 +189,23 @@ func (t *SimpleChaincode) DeleteAsset(ctx contractapi.TransactionContextInterfac
 		return fmt.Errorf("failed to delete asset %s: %v", assetID, err)
 	}
 
-	colorNameIndexKey, err := ctx.GetStub().CreateCompositeKey(index, []string{asset.Color, asset.ID})
+	WarehouseIndexKey, err := ctx.GetStub().CreateCompositeKey(index, []string{asset.Warehouse, asset.ID})
 	if err != nil {
 		return err
 	}
 
 	// Delete index entry
-	return ctx.GetStub().DelState(colorNameIndexKey)
+	return ctx.GetStub().DelState(WarehouseIndexKey)
 }
 
 // TransferAsset transfers an asset by setting a new owner name on the asset
-func (t *SimpleChaincode) TransferAsset(ctx contractapi.TransactionContextInterface, assetID, newOwner string) error {
+func (t *SimpleChaincode) TransferAsset(ctx contractapi.TransactionContextInterface, assetID, newResponsiblePerson string) error {
 	asset, err := t.ReadAsset(ctx, assetID)
 	if err != nil {
 		return err
 	}
 
-	asset.Owner = newOwner
+	asset.ResponsiblePerson = newResponsiblePerson
 	assetBytes, err := json.Marshal(asset)
 	if err != nil {
 		return err
@@ -253,16 +258,16 @@ func (t *SimpleChaincode) GetAssetsByRange(ctx contractapi.TransactionContextInt
 // committing peers if the result set has changed between endorsement time and commit time.
 // Therefore, range queries are a safe option for performing update transactions based on query results.
 // Example: GetStateByPartialCompositeKey/RangeQuery
-func (t *SimpleChaincode) TransferAssetByColor(ctx contractapi.TransactionContextInterface, color, newOwner string) error {
+func (t *SimpleChaincode) TransferAssetByColor(ctx contractapi.TransactionContextInterface, warehouse, newResponsiblePerson string) error {
 	// Execute a key range query on all keys starting with 'color'
-	coloredAssetResultsIterator, err := ctx.GetStub().GetStateByPartialCompositeKey(index, []string{color})
+	WarehouseAssetResultsIterator, err := ctx.GetStub().GetStateByPartialCompositeKey(index, []string{warehouse})
 	if err != nil {
 		return err
 	}
-	defer coloredAssetResultsIterator.Close()
+	defer WarehouseAssetResultsIterator.Close()
 
-	for coloredAssetResultsIterator.HasNext() {
-		responseRange, err := coloredAssetResultsIterator.Next()
+	for WarehouseAssetResultsIterator.HasNext() {
+		responseRange, err := WarehouseAssetResultsIterator.Next()
 		if err != nil {
 			return err
 		}
@@ -278,7 +283,7 @@ func (t *SimpleChaincode) TransferAssetByColor(ctx contractapi.TransactionContex
 			if err != nil {
 				return err
 			}
-			asset.Owner = newOwner
+			asset.ResponsiblePerson = newResponsiblePerson
 			assetBytes, err := json.Marshal(asset)
 			if err != nil {
 				return err
@@ -298,8 +303,8 @@ func (t *SimpleChaincode) TransferAssetByColor(ctx contractapi.TransactionContex
 // and accepting a single query parameter (owner).
 // Only available on state databases that support rich query (e.g. CouchDB)
 // Example: Parameterized rich query
-func (t *SimpleChaincode) QueryAssetsByOwner(ctx contractapi.TransactionContextInterface, owner string) ([]*Asset, error) {
-	queryString := fmt.Sprintf(`{"selector":{"docType":"asset","owner":"%s"}}`, owner)
+func (t *SimpleChaincode) QueryAssetsByOwner(ctx contractapi.TransactionContextInterface, responsibleperson string) ([]*Asset, error) {
+	queryString := fmt.Sprintf(`{"selector":{"docType":"asset","owner":"%s"}}`, responsibleperson)
 	return getQueryResultForQueryString(ctx, queryString)
 }
 
@@ -439,16 +444,21 @@ func (t *SimpleChaincode) AssetExists(ctx contractapi.TransactionContextInterfac
 // InitLedger creates the initial set of assets in the ledger.
 func (t *SimpleChaincode) InitLedger(ctx contractapi.TransactionContextInterface) error {
 	assets := []Asset{
-		{DocType: "asset", ID: "asset1", Color: "blue", Size: 5, Owner: "Tomoko", AppraisedValue: 300},
-		{DocType: "asset", ID: "asset2", Color: "red", Size: 5, Owner: "Brad", AppraisedValue: 400},
-		{DocType: "asset", ID: "asset3", Color: "green", Size: 10, Owner: "Jin Soo", AppraisedValue: 500},
-		{DocType: "asset", ID: "asset4", Color: "yellow", Size: 10, Owner: "Max", AppraisedValue: 600},
-		{DocType: "asset", ID: "asset5", Color: "black", Size: 15, Owner: "Adriana", AppraisedValue: 700},
-		{DocType: "asset", ID: "asset6", Color: "white", Size: 15, Owner: "Michel", AppraisedValue: 800},
+		// Raw Material
+		{DocType: "inventory", ID: "rm1", NameProduct: "Katun Polyester", Quantity: 500, Warehouse: "Supplier A", ResponsiblePerson: "Ujang", Status: "Dikirim", Timestamp: "2025-03-25T08:00:00Z"},
+		{DocType: "inventory", ID: "rm2", NameProduct: "Linen Mix", Quantity: 300, Warehouse: "Supplier B", ResponsiblePerson: "Michael", Status: "Diterima", Timestamp: "2025-03-25T10:00:00Z"},
+
+		// Warehousing
+		{DocType: "inventory", ID: "wh1", NameProduct: "Celana Pendek Hlk", Quantity: 100, Warehouse: "Gudang A", ResponsiblePerson: "Abbey", Status: "Transit", Timestamp: "2025-03-25T12:00:00Z"},
+		{DocType: "inventory", ID: "wh2", NameProduct: "Chino 347", Quantity: 150, Warehouse: "Gudang B", ResponsiblePerson: "Bradd", Status: "Sudah Sampai", Timestamp: "2025-03-25T14:00:00Z"},
+
+		// Retail Sales
+		{DocType: "inventory", ID: "rs1", NameProduct: "Kemeja Hitam", Quantity: 50, Warehouse: "Toko Utama", ResponsiblePerson: "Siti", Status: "Dijual", Timestamp: "2025-03-25T16:00:00Z"},
+		{DocType: "inventory", ID: "rs2", NameProduct: "Tunic Ungu", Quantity: 30, Warehouse: "Toko Cabang", ResponsiblePerson: "Joko", Status: "Dijual", Timestamp: "2025-03-25T18:00:00Z"},
 	}
 
 	for _, asset := range assets {
-		err := t.CreateAsset(ctx, asset.ID, asset.Color, asset.Size, asset.Owner, asset.AppraisedValue)
+		err := t.CreateAsset(ctx, asset.ID, asset.NameProduct, asset.Quantity, asset.Warehouse, asset.ResponsiblePerson, asset.Status, asset.Timestamp)
 		if err != nil {
 			return err
 		}
