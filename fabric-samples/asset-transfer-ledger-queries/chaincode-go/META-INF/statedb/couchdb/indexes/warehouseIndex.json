@@ -1,0 +1,12 @@
+{
+    "index": {
+      "fields": [
+        {"Warehouse": "asc"},
+        {"docType": "asc"}
+      ]
+    },
+    "ddoc": "warehouseIndexDoc",
+    "name": "warehouseIndex",
+    "type": "json"
+  }
+  

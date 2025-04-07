@@ -1,0 +1,12 @@
+{
+    "index": {
+      "fields": [
+        {"ResponsiblePerson": "asc"},
+        {"docType": "asc"}
+      ]
+    },
+    "ddoc": "responsiblePersonIndexDoc",
+    "name": "responsiblePersonIndex",
+    "type": "json"
+  }
+  
