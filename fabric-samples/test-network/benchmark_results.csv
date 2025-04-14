@@ -1,0 +1,14 @@
+query_type,field1,field2,result_count,real_time,user_time,sys_time,max_memory_kb
+QueryByWarehouse,SakuraTex,,,0:00.12,0.03,0.05,25728
+QueryByWarehouse,SakuraTex,,,0:00.20,0.03,0.06,25592
+QueryByWarehouse,SakuraTex,,,0:00.11,0.04,0.05,25196
+QueryByWarehouse,SakuraTex,,,0:00.18,0.02,0.05,25764
+QueryByWarehouse,SakuraTex,,,0:00.21,0.04,0.08,25524
+QueryByWarehouse,SakuraTex,,,0:00.20,0.02,0.06,25784
+QueryByWarehouse,SakuraTex,,,0:00.19,0.03,0.05,25828
+QueryByWarehouse,SakuraTex,,,0:00.64,0.04,0.11,25032
+QueryByWarehouse,SakuraTex,,,,0.03,0.09,25332
+QueryByWarehouse,SakuraTex,,,0:00.13,,,25624
+QueryByWarehouse,SakuraTex,,,0:00.19,0.03,0.05,25604
+QueryByWarehouse,SakuraTex,,,0:00.11,0.03,0.05,24980
+QueryByWarehouse,SakuraTex,,,0:00.17,,,25380
